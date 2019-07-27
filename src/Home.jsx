@@ -12,13 +12,15 @@ class Home extends Component {
     const body = await response.json();
     if (body.success) {
       this.props.dispatch({ type: 'SET_CHATROOMS', chatRooms: body.chatRooms });
+    } else {
+      this.props.dispatch({ type: 'LOGOUT' });
     }
   };
   render() {
     return (
       <>
         {Object.keys(this.props.chatRooms).map((roomName) => (
-          <ChatRoom roomName={roomName} />
+          <ChatRoom roomName={roomName} key={roomName} />
         ))}
       </>
     );

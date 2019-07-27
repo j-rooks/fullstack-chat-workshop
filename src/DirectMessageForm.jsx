@@ -25,7 +25,7 @@ class DirectMessageForm extends Component {
       body: formData,
     });
     const body = await response.json();
-    if (!body.success) alert(body.msg);
+    if (!body.success) alert(body.message);
   };
   render() {
     return (

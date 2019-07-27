@@ -7,7 +7,6 @@ class ChatForm extends Component {
     this.state = { message: '', image: null };
   }
   handleMessageChange = (event) => {
-    console.log('new message', event.target.value);
     this.setState({ message: event.target.value });
   };
   handleImageChange = (event) => {
@@ -17,7 +16,7 @@ class ChatForm extends Component {
     event.preventDefault();
     console.log('form submitted');
     let data = new FormData();
-    data.append('msg', this.state.message);
+    data.append('message', this.state.message);
     data.append('img', this.state.image);
     data.append('roomName', this.props.roomName);
     fetch('/newmessage', {
@@ -27,17 +26,24 @@ class ChatForm extends Component {
     });
   };
   handleDelete = () => {
-    fetch('/delete', { method: 'POST', credentials: 'same-origin' });
+    fetch('/delete?roomName=' + this.props.roomName, {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
   };
-  handleKick = () => {
+  handleKick = async () => {
     const username = window.prompt();
+    if (!username) return;
     const formData = new FormData();
     formData.append('username', username);
-    fetch('/kick', {
+    formData.append('roomName', this.props.roomName);
+    const response = await fetch('/kick', {
       method: 'POST',
       body: formData,
       credentials: 'same-origin',
     });
+    const body = await response.json();
+    if (!body.success) alert(body.message);
   };
   render = () => {
     return (

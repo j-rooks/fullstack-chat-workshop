@@ -50,11 +50,6 @@ app.get('/chatrooms', function(req, res) {
 
 app.get('/direct-messages', (req, res) => {
   const sessionId = req.cookies.sid;
-  if (!sessions[sessionId]) {
-    return res.send(
-      JSON.stringify({ success: false, message: 'Invalid session' })
-    );
-  }
   const username = sessions[sessionId];
   res.send(
     JSON.stringify({
@@ -67,14 +62,25 @@ app.get('/direct-messages', (req, res) => {
 app.post('/kick', upload.none(), (req, res) => {
   const sessionId = req.cookies.sid;
   const username = sessions[sessionId];
-  if (username !== 'admin') {
-    return res.send(JSON.stringify({ success: false }));
-  }
+  const chatRoom = chatRooms[req.body.roomName];
   const usernameToKick = req.body.username;
-  const sessionIdToRemove = Object.keys(sessions).find(
-    (sessionId) => sessions[sessionId] === usernameToKick
+  if (!passwords[usernameToKick]) {
+    return res.send(
+      JSON.stringify({ success: false, message: 'User does not exist' })
+    );
+  }
+  if (chatRoom.admin !== username) {
+    return res.send(
+      JSON.stringify({
+        success: false,
+        message: 'Only the admin of the chat room can kick users',
+      })
+    );
+  }
+  chatRoom.users.splice(chatRoom.users.indexOf(usernameToKick), 1);
+  chatRoom.messages.push(
+    new Message('Notification', `${usernameToKick} was kicked`)
   );
-  delete sessions[sessionIdToRemove];
   res.send(JSON.stringify({ success: true }));
 });
 
@@ -84,10 +90,14 @@ app.post('/logout', (req, res) => {
   res.send(JSON.stringify({ success: true }));
 });
 
-app.post('/delete', (req, res) => {
+app.post('/delete', upload.none(), (req, res) => {
   const sessionId = req.cookies.sid;
   const username = sessions[sessionId];
-  messages = messages.filter((message) => message.username !== username);
+  const roomName = req.query.roomName;
+  const chatRoom = chatRooms[roomName];
+  chatRoom.messages = chatRoom.messages.filter(
+    (message) => message.username !== username
+  );
   res.send(JSON.stringify({ success: true }));
 });
 
@@ -98,7 +108,7 @@ app.post('/newmessage', upload.single('img'), (req, res) => {
   const username = sessions[sessionId];
   console.log('username', username);
   const roomName = req.body.roomName;
-  const msg = req.body.msg;
+  const msg = req.body.message;
   const imgPath = req.file ? `/images/${req.file.filename}` : '';
   const newMsg = new Message(username, msg, imgPath);
   console.log('new message', newMsg);
@@ -114,7 +124,7 @@ app.post('/direct-message', upload.none(), (req, res) => {
   const message = req.body.message;
   if (!passwords[recipient]) {
     return res.send(
-      JSON.stringify({ success: false, msg: 'User does not exist' })
+      JSON.stringify({ success: false, message: 'User does not exist' })
     );
   }
   directMessages[recipient].push(new Message(username, message));
@@ -132,18 +142,17 @@ app.post('/create-room', upload.none(), (req, res) => {
 app.post('/join', upload.none(), (req, res) => {
   const sessionId = req.cookies.sid;
   const username = sessions[sessionId];
-  const roomName = req.body.roomName;
-  chatRooms[roomName].users.push(username);
-  chatRooms[roomName].messages.push(
-    new Message('Notification', `${username} has joined`)
-  );
+  const roomName = req.query.roomName;
+  const chatRoom = chatRooms[roomName];
+  chatRoom.users.push(username);
+  chatRoom.messages.push(new Message('Notification', `${username} has joined`));
   res.send(JSON.stringify({ success: true }));
 });
 
 app.post('/leave', upload.none(), (req, res) => {
   const sessionId = req.cookies.sid;
   const username = sessions[sessionId];
-  const roomName = req.body.roomName;
+  const roomName = req.query.roomName;
   const chatRoom = chatRooms[roomName];
   chatRoom.users.splice(chatRoom.users.indexOf(username), 1);
   chatRoom.messages.push(new Message('Notification', `${username} has left`));
@@ -158,7 +167,6 @@ app.post('/login', upload.none(), (req, res) => {
   const expectedPassword = passwords[username];
   console.log('expected password', expectedPassword);
   if (enteredPassword === expectedPassword) {
-    messages.push(new Message('Notification', `${username} has joined`));
     console.log('password matches');
     const sessionId = generateId();
     console.log('generated id', sessionId);

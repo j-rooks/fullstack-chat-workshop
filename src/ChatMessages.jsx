@@ -5,7 +5,7 @@ import { timestampToString } from './utilities';
 class ChatMessages extends Component {
   render = () => {
     const msgToElement = (message) => (
-      <li>
+      <li key={message.timestamp}>
         {timestampToString(message.timestamp)} - {message.username}:
         {message.message}
         {message.img && <img className="msg-img" src={message.img} />}
